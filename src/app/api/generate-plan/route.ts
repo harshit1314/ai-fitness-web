@@ -25,19 +25,20 @@ export async function POST(req: Request) {
       
       Requirements:
       1. Workout Plan: Provide a 7-day routine. Include specific exercises, sets, reps (or duration), and rest times.
-      2. Diet Plan: Provide meal breakdowns for Breakfast, Lunch, Dinner, and Snacks. Include ingredients and approximate macros.
-      3. Format: Return ONLY a valid JSON object. No markdown, no preamble.
+      2. Diet Plan: Provide meal breakdowns for Breakfast, Lunch, Dinner, and Snacks. 
+      3. Macros: Every meal MUST have a "macros" object with "p", "c", "f", and "cal" keys.
+      4. Format: Return ONLY a valid JSON object. No markdown, no preamble.
       
-      JSON Structure:
+      JSON Structure Template (STRICT):
       {
         "workout": [
           { "day": "Day 1", "title": "...", "exercises": [{ "name": "...", "sets": "...", "reps": "...", "rest": "...", "notes": "..." }] }
         ],
         "diet": {
           "breakfast": { "name": "...", "ingredients": ["..."], "macros": { "p": "...", "c": "...", "f": "...", "cal": "..." } },
-          "lunch": { ... },
-          "dinner": { ... },
-          "snack": { ... }
+          "lunch": { "name": "...", "ingredients": ["..."], "macros": { "p": "...", "c": "...", "f": "...", "cal": "..." } },
+          "dinner": { "name": "...", "ingredients": ["..."], "macros": { "p": "...", "c": "...", "f": "...", "cal": "..." } },
+          "snack": { "name": "...", "ingredients": ["..."], "macros": { "p": "...", "c": "...", "f": "...", "cal": "..." } }
         },
         "tips": ["...", "..."],
         "motivation": "..."

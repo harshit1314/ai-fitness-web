@@ -384,10 +384,10 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                                             </div>
                                             <div className="p-12 md:col-span-2 bg-card">
                                                 <div className="grid grid-cols-4 gap-6 mb-10">
-                                                    <MacroBox label="Cals" value={meal.macros.cal} color="bg-orange-500" />
-                                                    <MacroBox label="Prot" value={meal.macros.p} color="bg-blue-600" />
-                                                    <MacroBox label="Carb" value={meal.macros.c} color="bg-amber-500" />
-                                                    <MacroBox label="Fat" value={meal.macros.f} color="bg-rose-600" />
+                                                    <MacroBox label="Cals" value={meal.macros?.cal || "N/A"} color="bg-orange-500" />
+                                                    <MacroBox label="Prot" value={meal.macros?.p || "N/A"} color="bg-blue-600" />
+                                                    <MacroBox label="Carb" value={meal.macros?.c || "N/A"} color="bg-amber-500" />
+                                                    <MacroBox label="Fat" value={meal.macros?.f || "N/A"} color="bg-rose-600" />
                                                 </div>
                                                 <div className="flex flex-wrap gap-3">
                                                     {meal.ingredients.map((ing: string, iIdx: number) => (
