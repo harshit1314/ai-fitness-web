@@ -135,7 +135,7 @@ export default function FitnessChat({ plan, userData }: { plan: any, userData: a
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setIsOpen(true)}
-                        className="bg-primary text-white p-6 rounded-[2rem] shadow-[0_20px_50px_rgba(var(--primary),0.5)] border-4 border-white/20"
+                        className="bg-primary text-white p-6 rounded-[2rem] shadow-2xl shadow-primary/40 border-4 border-white/20"
                     >
                         <div className="relative">
                             <MessageCircle className="w-10 h-10" />

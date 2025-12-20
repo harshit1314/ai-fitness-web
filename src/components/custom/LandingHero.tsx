@@ -67,7 +67,7 @@ export default function LandingHero({ onGetStarted }: { onGetStarted: () => void
             transition={{ duration: 0.6, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-6"
           >
-            <Button size="lg" className="h-16 px-12 text-xl font-black rounded-3xl shadow-[0_20px_50px_rgba(var(--primary),0.3)] group active:scale-95 transition-all" onClick={onGetStarted}>
+            <Button size="lg" className="h-16 px-12 text-xl font-black rounded-3xl shadow-2xl shadow-primary/30 group active:scale-95 transition-all" onClick={onGetStarted}>
               INITIATE SEQUENCE
               <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
             </Button>

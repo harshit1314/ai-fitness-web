@@ -174,7 +174,7 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
         }
     };
 
-    if (isLoading) {
+    if (isLoading || !plan) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center space-y-8 bg-background">
                 <motion.div
@@ -189,60 +189,6 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                 <div className="text-center space-y-4 max-w-md px-6">
                     <h2 className="text-4xl font-black tracking-tighter uppercase leading-tight">Forging Your Future Self</h2>
                     <p className="text-muted-foreground text-xl italic font-medium">AI is currently analyzing thousands of data points to create your elite-level plan...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center space-y-10 bg-background p-6 text-center">
-                <div className="relative">
-                    <div className="w-32 h-32 rounded-full bg-destructive/10 flex items-center justify-center text-destructive mx-auto animate-pulse">
-                        <Zap className="w-16 h-16 fill-destructive" />
-                    </div>
-                    <div className="absolute -top-2 -right-2 px-4 py-2 bg-destructive text-white text-[10px] font-black rounded-full shadow-lg">ERROR 404</div>
-                </div>
-                <div className="max-w-2xl space-y-6">
-                    <h2 className="text-5xl font-black tracking-tighter uppercase leading-tight text-destructive">API Connection Blocked</h2>
-                    <div className="p-6 bg-muted/50 rounded-3xl border-2 border-border/50 text-left space-y-4">
-                        <p className="text-xl font-bold tracking-tight text-primary">Technical Detail:</p>
-                        <code className="text-sm block bg-background p-4 rounded-xl border font-mono text-destructive break-all uppercase leading-relaxed">
-                            {error}
-                        </code>
-                        <p className="text-sm font-medium text-muted-foreground leading-relaxed">
-                            This usually means your Google API Key hasn't been enabled for "Generative Language API" yet, or you are in a restricted region.
-                        </p>
-                    </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                    <Button size="lg" onClick={onRegenerate} className="flex-1 h-20 rounded-3xl font-black text-xl gap-4 shadow-2xl active:scale-95 transition-all">
-                        <RefreshCw className="w-8 h-8" /> TRY AGAIN
-                    </Button>
-                    <Button
-                        size="lg"
-                        variant="outline"
-                        onClick={async () => {
-                            setError(null);
-                            setIsLoading(true);
-                            try {
-                                const response = await fetch("/api/generate-plan", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ ...userData, demo: true }),
-                                });
-                                const data = await response.json();
-                                setPlan(data);
-                            } catch (e: any) {
-                                setError("Demo mode failed to load");
-                            } finally {
-                                setIsLoading(false);
-                            }
-                        }}
-                        className="flex-1 h-20 rounded-3xl font-black text-xl gap-4 border-4 hover:bg-primary/5 active:scale-95 transition-all"
-                    >
-                        <Zap className="w-8 h-8 text-primary" /> RUN DEMO
-                    </Button>
                 </div>
             </div>
         );
@@ -266,7 +212,7 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                     <Button variant="outline" size="lg" onClick={onRegenerate} className="h-16 px-10 rounded-[2rem] border-4 font-black text-lg hover:bg-primary hover:text-primary-foreground transition-all">
                         <RefreshCw className="w-6 h-6 mr-3" /> RESTART
                     </Button>
-                    <Button size="lg" onClick={exportPDF} disabled={isExporting} className="h-16 px-10 rounded-[2rem] border-0 shadow-[0_20px_50px_rgba(var(--primary),0.3)] font-black text-lg">
+                    <Button size="lg" onClick={exportPDF} disabled={isExporting} className="h-16 px-10 rounded-[2rem] border-0 shadow-2xl shadow-primary/20 font-black text-lg">
                         {isExporting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Download className="w-6 h-6 mr-3" /> EXPORT PDF</>}
                     </Button>
                     <Button variant="outline" size="lg" onClick={onReset} className="h-16 px-10 rounded-[2rem] border-4 border-destructive text-destructive font-black text-lg hover:bg-destructive hover:text-white transition-all">
@@ -406,7 +352,7 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                 </div>
 
                 <div className="space-y-12">
-                    <Card className="bg-gradient-to-br from-primary to-blue-700 text-primary-foreground rounded-[3rem] overflow-hidden shadow-[0_30px_60px_rgba(var(--primary),0.3)] border-0">
+                    <Card className="bg-gradient-to-br from-primary to-blue-700 text-primary-foreground rounded-[3rem] overflow-hidden shadow-2xl shadow-primary/30 border-0">
                         <CardHeader className="p-10 pb-6">
                             <CardTitle className="flex items-center gap-4 text-4xl font-black italic tracking-tighter">
                                 <Volume2 className="w-10 h-10" />
