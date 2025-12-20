@@ -20,7 +20,7 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
-    const [jsPDFLib, setJsPDFLib] = useState<any>(null);
+    const [jsPDFConstructor, setJsPDFConstructor] = useState<any>(null);
 
     useEffect(() => {
         const fetchPlan = async () => {
@@ -71,7 +71,8 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
 
         // Pre-import jsPDF to avoid lag on first click
         import("jspdf").then(module => {
-            setJsPDFLib(module.jsPDF);
+            const Constructor = module.jsPDF || (module as any).default;
+            setJsPDFConstructor(() => Constructor);
         });
     }, [userData]);
 
@@ -131,44 +132,150 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
     const exportPDF = async () => {
         setIsExporting(true);
         try {
-            const doc = jsPDFLib ? new jsPDFLib() : new (await import("jspdf")).jsPDF();
+            let Constructor = jsPDFConstructor;
+            if (!Constructor) {
+                const module = await import("jspdf");
+                Constructor = module.jsPDF || (module as any).default;
+            }
+            const doc = new Constructor();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 20;
+            const contentWidth = pageWidth - (margin * 2);
+            let y = 20;
 
-            doc.setFontSize(22);
-            doc.text(`AI Fitness Plan - ${userData.name}`, 20, 20);
+            const checkPageBreak = (neededHeight: number) => {
+                if (y + neededHeight > doc.internal.pageSize.getHeight() - 20) {
+                    doc.addPage();
+                    y = 20;
+                    return true;
+                }
+                return false;
+            };
 
+            // Header
+            doc.setFillColor(37, 99, 235); // Primary Blue
+            doc.rect(0, 0, pageWidth, 40, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
+            doc.setFont("helvetica", "bold");
+            doc.text("AI FITNESS COACH", margin, 25);
+            doc.setFontSize(10);
+            doc.text(`PREPARED FOR: ${userData.name.toUpperCase()}`, margin, 33);
+            y = 55;
+
+            // Motivation
+            doc.setTextColor(37, 99, 235);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            const motivationLines = doc.splitTextToSize(`"${plan.motivation || ""}"`, contentWidth);
+            doc.text(motivationLines, margin, y);
+            y += (motivationLines.length * 7) + 15;
+
+            // Workout Section
+            doc.setFillColor(243, 244, 246);
+            doc.rect(margin - 5, y - 7, contentWidth + 10, 10, "F");
+            doc.setTextColor(31, 41, 55);
             doc.setFontSize(16);
-            doc.text("Workout Plan", 20, 40);
-            doc.setFontSize(12);
-            let y = 50;
+            doc.setFont("helvetica", "bold");
+            doc.text("WORKOUT PLAN", margin, y);
+            y += 15;
+
             plan.workout.forEach((day: any) => {
-                doc.text(`${day.day}: ${day.title}`, 20, y);
-                y += 10;
+                checkPageBreak(30);
+                doc.setTextColor(37, 99, 235);
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "bold");
+                doc.text(day.day.toUpperCase(), margin, y);
+                doc.setTextColor(17, 24, 39);
+                doc.text(` - ${day.title}`, margin + 25, y);
+                y += 8;
+
                 day.exercises.forEach((ex: any) => {
-                    doc.text(`- ${ex.name}: ${ex.sets} sets x ${ex.reps} reps`, 30, y);
-                    y += 7;
-                    if (y > 280) { doc.addPage(); y = 20; }
+                    const notes = doc.splitTextToSize(ex.notes || "", contentWidth - 15);
+                    const neededHeight = 6 + (notes.length * 5) + 4;
+                    checkPageBreak(neededHeight);
+
+                    doc.setTextColor(75, 85, 99);
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "bold");
+                    doc.text(`• ${ex.name}`, margin + 5, y);
+                    doc.setFont("helvetica", "normal");
+                    doc.text(`${ex.sets} sets x ${ex.reps} reps`, margin + 80, y);
+                    y += 6;
+
+                    doc.setTextColor(107, 114, 128);
+                    doc.setFontSize(9);
+                    doc.text(notes, margin + 10, y);
+                    y += (notes.length * 5) + 4;
                 });
                 y += 5;
-                if (y > 280) { doc.addPage(); y = 20; }
             });
 
-            doc.addPage();
-            y = 20;
+            // Diet Section
+            checkPageBreak(40);
+            y += 10;
+            doc.setFillColor(243, 244, 246);
+            doc.rect(margin - 5, y - 7, contentWidth + 10, 10, "F");
+            doc.setTextColor(31, 41, 55);
             doc.setFontSize(16);
-            doc.text("Diet Plan", 20, y);
+            doc.setFont("helvetica", "bold");
+            doc.text("DIET & NUTRITION", margin, y);
             y += 15;
-            doc.setFontSize(12);
+
             Object.entries(plan.diet).forEach(([type, meal]: any) => {
-                doc.text(`${type.toUpperCase()}: ${meal.name}`, 20, y);
-                y += 10;
-                doc.text(`Ingredients: ${meal.ingredients.join(", ")}`, 30, y);
-                y += 10;
-                if (y > 280) { doc.addPage(); y = 20; }
+                checkPageBreak(35);
+                doc.setTextColor(22, 163, 74); // Green
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "bold");
+                doc.text(type.toUpperCase(), margin, y);
+                doc.setTextColor(17, 24, 39);
+                doc.text(`: ${meal.name}`, margin + 35, y);
+                y += 7;
+
+                // Macros
+                doc.setFontSize(9);
+                doc.setTextColor(107, 114, 128);
+                const macros = `Cals: ${meal.macros?.cal || "N/A"} | P: ${meal.macros?.p || "N/A"} | C: ${meal.macros?.c || "N/A"} | F: ${meal.macros?.f || "N/A"}`;
+                doc.text(macros, margin + 5, y);
+                y += 6;
+
+                // Ingredients
+                const ingredients = doc.splitTextToSize(`Ingredients: ${meal.ingredients.join(", ")}`, contentWidth - 10);
+                doc.text(ingredients, margin + 5, y);
+                y += (ingredients.length * 5) + 8;
             });
+
+            // Tips
+            checkPageBreak(30);
+            y += 5;
+            doc.setTextColor(31, 41, 55);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("TOP PERFORMANCE TIPS", margin, y);
+            y += 10;
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(75, 85, 99);
+            plan.tips.forEach((tip: string) => {
+                const tipLines = doc.splitTextToSize(`• ${tip}`, contentWidth);
+                checkPageBreak(tipLines.length * 6);
+                doc.text(tipLines, margin, y);
+                y += (tipLines.length * 6);
+            });
+
+            // Footer
+            const pageCount = (doc as any).internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(156, 163, 175);
+                doc.text(`Page ${i} of ${pageCount} | Generated by AI Fitness Coach`, margin, doc.internal.pageSize.getHeight() - 10);
+            }
 
             doc.save(`${userData.name}_fitness_plan.pdf`);
         } catch (error) {
             console.error("PDF Export Error:", error);
+            alert("Failed to export PDF. Please check the console for details.");
         } finally {
             setIsExporting(false);
         }
@@ -201,12 +308,16 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-8"
             >
-                <div>
-                    <h1 className="text-5xl font-black mb-2 tracking-tighter leading-none">THE <span className="text-primary italic">PRIME</span> PLAN</h1>
-                    <p className="text-lg text-muted-foreground font-bold uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Zap className="w-5 h-5 fill-primary text-primary" />
-                        FOR {userData.name}
-                    </p>
+                <div className="flex flex-col md:flex-row gap-6 items-center">
+                    <div className="text-left">
+                        <span className="text-xs font-black text-primary uppercase tracking-[0.6em] mb-2 block animate-pulse">SYSTEM STABLE V3</span>
+                        <h1 className="text-5xl font-black tracking-tighter leading-none">
+                            {plan?.title?.toUpperCase() || "ELITE PLAN"}
+                        </h1>
+                        <p className="text-muted-foreground mt-2 font-bold uppercase tracking-widest text-sm flex items-center gap-3">
+                            <Zap className="w-4 h-4" /> PERFORMANCE AGENT: {userData.name}
+                        </p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-4">
                     <Button variant="outline" size="lg" onClick={onRegenerate} className="h-16 px-10 rounded-[2rem] border-4 font-black text-lg hover:bg-primary hover:text-primary-foreground transition-all">
@@ -229,7 +340,7 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
             >
                 <div className="relative z-10 max-w-4xl">
                     <span className="inline-block px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-black tracking-[0.3em] uppercase mb-4">Quote of the Day</span>
-                    <h2 className="text-2xl md:text-3xl font-black italic tracking-tight leading-snug text-primary mb-4">
+                    <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-snug text-primary mb-4">
                         "{plan.motivation}"
                     </h2>
                     <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">— Your AI Coach</p>
@@ -307,7 +418,7 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                         </TabsContent>
 
                         <TabsContent value="diet" className="space-y-10">
-                            {Object.entries(plan.diet).map(([type, meal]: any, idx: number) => (
+                            {plan?.diet && Object.entries(plan.diet).map(([type, meal]: any, idx: number) => (
                                 <motion.div
                                     key={type}
                                     initial={{ opacity: 0, scale: 0.9 }}
@@ -330,10 +441,10 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                                             </div>
                                             <div className="p-12 md:col-span-2 bg-card">
                                                 <div className="grid grid-cols-4 gap-6 mb-10">
-                                                    <MacroBox label="Cals" value={meal.macros?.cal || "N/A"} color="bg-orange-500" />
-                                                    <MacroBox label="Prot" value={meal.macros?.p || "N/A"} color="bg-blue-600" />
-                                                    <MacroBox label="Carb" value={meal.macros?.c || "N/A"} color="bg-amber-500" />
-                                                    <MacroBox label="Fat" value={meal.macros?.f || "N/A"} color="bg-rose-600" />
+                                                    <MacroBox label="Cals" value={meal?.macros?.cal || "N/A"} color="bg-orange-500" />
+                                                    <MacroBox label="Prot" value={meal?.macros?.p || "N/A"} color="bg-blue-600" />
+                                                    <MacroBox label="Carb" value={meal?.macros?.c || "N/A"} color="bg-amber-500" />
+                                                    <MacroBox label="Fat" value={meal?.macros?.f || "N/A"} color="bg-rose-600" />
                                                 </div>
                                                 <div className="flex flex-wrap gap-3">
                                                     {meal.ingredients.map((ing: string, iIdx: number) => (
@@ -354,7 +465,7 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                 <div className="space-y-12">
                     <Card className="bg-gradient-to-br from-primary to-blue-700 text-primary-foreground rounded-[3rem] overflow-hidden shadow-2xl shadow-primary/30 border-0">
                         <CardHeader className="p-10 pb-6">
-                            <CardTitle className="flex items-center gap-4 text-4xl font-black italic tracking-tighter">
+                            <CardTitle className="flex items-center gap-4 text-4xl font-black tracking-tighter">
                                 <Volume2 className="w-10 h-10" />
                                 VIRTUAL COACH
                             </CardTitle>
@@ -387,7 +498,7 @@ export default function Dashboard({ userData, onRegenerate, onReset }: { userDat
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-8">
-                            <blockquote className="text-2xl font-black italic leading-tight text-primary mb-8 relative">
+                            <blockquote className="text-2xl font-black leading-tight text-primary mb-8 relative">
                                 "{plan.motivation}"
                             </blockquote>
                             <div className="space-y-4">
