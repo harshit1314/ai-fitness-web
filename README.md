@@ -36,7 +36,7 @@ PRIME AI is a high-performance, generative AI fitness companion designed to forg
 1. **Environment Setup**:
    Copy `.env.example` to `.env.local` and add your keys:
    ```env
-   GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+   GEMINI_API_KEY=your_key_here
    ELEVENLABS_API_KEY=your_key_here (optional for voice)
    ```
 

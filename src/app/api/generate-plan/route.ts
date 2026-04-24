@@ -1,7 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
+import { createGeminiClient } from "@/lib/gemini";
 
 export async function POST(req: Request) {
   try {
@@ -49,6 +48,8 @@ export async function POST(req: Request) {
       return NextResponse.json(MOCK_PLAN);
     }
 
+    const genAI = createGeminiClient();
+
     let text = "";
     // Expanded list of models including experimental and versioned aliases
     const modelNames = [
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
       "gemini-1.5-flash",
       "gemini-1.5-pro"
     ];
-    let lastError: any = null;
+    let lastError: unknown = null;
 
     for (const modelName of modelNames) {
       try {
@@ -73,8 +74,9 @@ export async function POST(req: Request) {
           console.log(`[Gemini] Success using ${modelName}`);
           break;
         }
-      } catch (err: any) {
-        console.warn(`[Gemini] ${modelName} attempt failed:`, err.message);
+      } catch (err: unknown) {
+        const errMessage = err instanceof Error ? err.message : String(err);
+        console.warn(`[Gemini] ${modelName} attempt failed:`, errMessage);
         lastError = err;
       }
     }
@@ -87,27 +89,56 @@ export async function POST(req: Request) {
 
     // Clean potential markdown formatting
     const jsonString = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const plan = JSON.parse(jsonString);
+    let plan: unknown;
+    try {
+      plan = JSON.parse(jsonString);
+    } catch {
+      throw new Error("AI response could not be parsed as valid JSON.");
+    }
 
     return NextResponse.json(plan);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini API Final Error:", error);
 
     let errorMessage = "Failed to generate plan";
-    if (error.message?.includes("API key not valid")) {
-      errorMessage = "Invalid Gemini API Key. Please verify it in AI Studio.";
-    } else if (error.message?.includes("safety")) {
+    let statusCode = 500;
+
+    const errorMessageRaw = error instanceof Error ? error.message : String(error);
+    const normalizedMessage = errorMessageRaw.toLowerCase();
+
+    if (
+      normalizedMessage.includes("api_key_invalid") ||
+      normalizedMessage.includes("api key not found") ||
+      normalizedMessage.includes("api key not valid")
+    ) {
+      errorMessage = "Invalid Gemini API key. Generate a new key in Google AI Studio and enable the Generative Language API.";
+      statusCode = 401;
+    } else if (normalizedMessage.includes("missing gemini api key")) {
+      errorMessage = "Gemini API key is not configured on the server.";
+      statusCode = 500;
+    } else if (normalizedMessage.includes("safety")) {
       errorMessage = "AI declined generation due to safety filters. Try a different goal.";
-    } else if (error.status === 429) {
+      statusCode = 400;
+    } else if (
+      (typeof error === "object" &&
+        error !== null &&
+        "status" in error &&
+        (error as { status?: number }).status === 429) ||
+      normalizedMessage.includes("rate limit")
+    ) {
       errorMessage = "Rate limit reached. Please wait 60 seconds.";
+      statusCode = 429;
     } else {
-      errorMessage = error.message || "An unexpected error occurred during plan generation.";
+      errorMessage = errorMessageRaw || "An unexpected error occurred during plan generation.";
     }
 
-    return NextResponse.json({
-      error: errorMessage,
-      details: error.message
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        details: process.env.NODE_ENV === "development" ? errorMessageRaw : undefined,
+      },
+      { status: statusCode }
+    );
   }
 }
 
